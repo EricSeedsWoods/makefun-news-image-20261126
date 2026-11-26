@@ -1,11 +1,32 @@
-// A working news-image-daily entry (Node 22, standard library only): its image is the entry.png beside this file, and
-// the program copies it to /output/entry.png. A starting point, not a winner: replace the image. The gate takes a
-// whole PNG or JPEG of at most 1 MiB and 1024 by 1024 pixels, and the judge sees exactly the bytes copied.
-//
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+import { existsSync, mkdirSync, copyFileSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
-import { copyFileSync } from 'node:fs';
-import { join } from 'node:path';
+/**
+ * make.fun news-image-20261126 delivery pipeline
+ * Transfers the synthesized daily news infographic to the designated evaluation volume.
+ */
+function deliverEntry(): void {
+  const currentDirectory = dirname(fileURLToPath(import.meta.url));
+  const sourceImage = resolve(currentDirectory, 'entry.png');
+  const destinationDirectory = process.env.MAKEFUN_OUTPUT_DIR || '/output';
+  const targetImage = resolve(destinationDirectory, 'entry.png');
 
-copyFileSync(new URL('./entry.png', import.meta.url), join(process.env.MAKEFUN_OUTPUT_DIR ?? '/output', 'entry.png'));
+  if (!existsSync(sourceImage)) {
+    throw new Error(`[news-image-pipeline] Source artifact not found: ${sourceImage}`);
+  }
+
+  const fileStats = statSync(sourceImage);
+  if (fileStats.size === 0) {
+    throw new Error(`[news-image-pipeline] Source artifact is empty: ${sourceImage}`);
+  }
+
+  if (!existsSync(destinationDirectory)) {
+    mkdirSync(destinationDirectory, { recursive: true });
+  }
+
+  copyFileSync(sourceImage, targetImage);
+  console.log(`[news-image-pipeline] Delivered entry.png (${(fileStats.size / 1024).toFixed(1)} KiB) -> ${targetImage}`);
+}
+
+deliverEntry();
